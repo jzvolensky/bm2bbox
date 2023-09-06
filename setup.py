@@ -9,7 +9,7 @@ setup(
     packages=find_packages(include=["bm2bbox", "bm2bbox.*"]),
     install_requires=[
         "opencv-python>=4.7.0",
-        "numpy>=1.19.2"
+        "numpy>=1.25.0"
     ],
     entry_points={'console_scripts': ['bm2bbox=bm2bbox.main:main']},
 )

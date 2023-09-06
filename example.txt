@@ -1,0 +1,1 @@
+bm2bbox -input "/home/jzvolensky/Documents/bm2bbox/test_data/test_bm.png" -s true -object_color "85,232,249" -backgroundcolor "81,7,62" -output_folder "/home/jzvolensky/Documents/bm2bbox/test_output/"

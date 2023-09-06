@@ -29,13 +29,14 @@ def parse_args():
                         )
 
     parser.add_argument('-object_color',
-                        type=int,
+                        type=str,
                         default=(0,255,0),
                         metavar='',
                         help='string. e.g. "0,255,0" in BGR format. Color of the object in the binary mask'
                         )
     parser.add_argument('-background_color',
-                        type=int,default=(255,0,255),
+                        type=str,
+                        default=(255,0,255),
                         metavar='',
                         help='string. e.g. "255,0,255" in BGR format. Color of the background in the binary mask'
                         )
@@ -142,12 +143,18 @@ def main():
     background_color = args.background_color
     single_image = args.s
 
-    if single_image==True:
+    if single_image:
         image = prepare_single_image(input_path)
         bounding_box = draw_bbox(image, object_color, background_color)
         cv2.imwrite(output_path, bounding_box)
     else:
+       
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
+
         images = prepare_images_folder(input_path)
-        for image in images:
+        for i, image in enumerate(images):
+           
+            output_file = os.path.join(output_folder, f"output_{i}.png")
             bounding_box = draw_bbox(image, object_color, background_color)
-            cv2.imwrite(output_folder, bounding_box)
+            cv2.imwrite(output_file, bounding_box)
