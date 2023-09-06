@@ -51,6 +51,12 @@ def parse_args():
                         metavar='',
                         help='string. Path to output bounding box folder'
                         )
+    parser.add_argument('-debug',
+                        type=bool,
+                        default=False,
+                        metavar='',
+                        help='bool. Debug mode'
+                        )
 
     return parser.parse_args()
 
@@ -65,7 +71,6 @@ def prepare_single_image(image_path):
         corrected_image = cv2.cvtColor(image, cv2.COLOR_BGR2BGRA)
     elif image.shape[2] == 4:
         corrected_image = cv2.cvtColor(image, cv2.COLOR_BGRA2RGBA)
-    corrected_image.append(image)
 
     return corrected_image
 
@@ -84,54 +89,73 @@ def prepare_images_folder(folder_path):
             corrected_image = cv2.cvtColor(image, cv2.COLOR_BGR2BGRA)
         elif image.shape[2] == 4:
             corrected_image = cv2.cvtColor(image, cv2.COLOR_BGRA2RGBA)
-        corrected_image.append(image)
 
     return corrected_image
 
-def draw_bbox(corrected_image, object_color, background_color, box_color):
+def draw_bbox(corrected_image, object_color, background_color):
     '''
     Function to draw a bounding box around a binary mask or a set of binary masks
     '''
 
-
-
-    blank_image = np.ones(corrected_image.shape, dtype=np.uint8) * 255
-    blank_image = cv2.cvtColor(blank_image, cv2.COLOR_BGR2BGRA)
-    blank_image[..., 3] = 0  # Set the alpha channel to 0 for transparency
+    height, width, _ = corrected_image.shape
+    blank_image = np.zeros((height, width, 4), dtype=np.uint8) 
+    blank_image[..., 3] = 0  
 
     hsv_image = cv2.cvtColor(corrected_image, cv2.COLOR_BGR2HSV)
 
-    object_rgb = tuple(int(object_color[i:i+2], 16) for i in (0, 2, 4))
-    background_rgb = tuple(int(background_color[i:i+2], 16) for i in (0, 2, 4))
-    
+    object_color_values = object_color.split(',')
+    if len(object_color_values) == 3:
+        object_rgb = tuple(map(int, object_color_values))
+    else:
+        print("Invalid object_color format. Expected format: '85,232,249'")
+
+
+    background_color_values = background_color.split(',')
+    if len(background_color_values) == 3:
+        background_rgb = tuple(map(int, background_color_values))
+    else:
+        print("Invalid background_color format. Expected format: '85,232,249'")
+
     object_hsv = cv2.cvtColor(np.uint8([[object_rgb]]), cv2.COLOR_RGB2HSV)[0][0]
     
-    lower_color = np.array([object_hsv[0]-10, 50, 50], dtype=np.uint8)
-    upper_color = np.array([object_hsv[0]+10, 255, 255], dtype=np.uint8)
-    
+    color_margin_percentage = 10
+
+    hue_margin = int((object_hsv[0] / 360) * color_margin_percentage)
+    saturation_margin = int((object_hsv[1] / 255) * color_margin_percentage)
+    value_margin = int((object_hsv[2] / 255) * color_margin_percentage)
+
+    lower_color = np.array([
+        max(0, object_hsv[0] - hue_margin),
+        max(0, object_hsv[1] - saturation_margin),
+        max(0, object_hsv[2] - value_margin)
+    ], dtype=np.uint8)
+
+    upper_color = np.array([
+        min(179, object_hsv[0] + hue_margin),
+        min(255, object_hsv[1] + saturation_margin),
+        min(255, object_hsv[2] + value_margin)
+    ], dtype=np.uint8)
+
     mask = cv2.inRange(hsv_image, lower_color, upper_color)
-    
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    for contour in contours:
-        x, y, w, h = cv2.boundingRect(contour)
-        cv2.rectangle(blank_image, (x, y), (x + w, y + h), box_color, 2)
-    
+
+    object_color_values = object_color.split(',')
+    object_rgb = tuple(map(int, object_color_values))
+    object_b, object_g, object_r = object_rgb
+    print(f'Object Color (BGR): ({object_b}, {object_g}, {object_r})')
+
+    background_color_values = background_color.split(',')
+    background_rgb = tuple(map(int, background_color_values))
+    background_b, background_g, background_r = background_rgb
+    print(f'Background Color (BGR): ({background_b}, {background_g}, {background_r})')
+
     return blank_image
+
+
 
 def save_geojson(output_path, bounding_boxes):
     with open(output_path, "w") as geojson_file:
         json.dump(bounding_boxes, geojson_file, indent=2)
 
-if __name__ == "__main__":
-    args = parse_args()
-
-    input_path = args.input
-    output_path = args.output
-    output_folder = args.output_folder
-    object_color = args.object_color
-    background_color = args.background_color
-    single_image = args.s
 
 def main():
     args = parse_args()
@@ -142,19 +166,46 @@ def main():
     object_color = args.object_color
     background_color = args.background_color
     single_image = args.s
+    debug_mode = args.debug
 
     if single_image:
         image = prepare_single_image(input_path)
         bounding_box = draw_bbox(image, object_color, background_color)
+        
+        # Specify the output file format based on the provided output_path
+        if output_path is None:
+            output_path = "output.png"  # Default output file name
+        
+        # Ensure the output file path has a valid extension
+        if not output_path.endswith((".png", ".jpg", ".jpeg")):
+            print("Invalid output file format. Supported formats: .png, .jpg, .jpeg")
+            return
+
         cv2.imwrite(output_path, bounding_box)
     else:
-       
+        # Create the output folder if it doesn't exist
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
 
         images = prepare_images_folder(input_path)
         for i, image in enumerate(images):
-           
-            output_file = os.path.join(output_folder, f"output_{i}.png")
             bounding_box = draw_bbox(image, object_color, background_color)
+            
+            # Specify the output file format based on the image format
+            output_file = os.path.join(output_folder, f"output_{i}.png")
+            
             cv2.imwrite(output_file, bounding_box)
+
+    if debug_mode == True:
+        print("Debug mode is on")
+        print("Input path: ", input_path)
+        print("Output path: ", output_path)
+        print("Output folder: ", output_folder)
+        print("Object color: ", object_color)
+        print("Background color: ", background_color)
+        print("Single image?: ", single_image)
+
+
+if __name__ == "__main__":
+    main()
+
