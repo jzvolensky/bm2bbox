@@ -66,11 +66,15 @@ def prepare_single_image(image_path):
     to RGBA if it is not already in RGBA format
     '''
     image = cv2.imread(image_path)
+    if image is None:
+        print('Could not open or find the image:', args.input)
+        exit(0)
     corrected_image = []
     if image.shape[2] == 3:
         corrected_image = cv2.cvtColor(image, cv2.COLOR_BGR2BGRA)
     elif image.shape[2] == 4:
         corrected_image = cv2.cvtColor(image, cv2.COLOR_BGRA2RGBA)
+
 
     return corrected_image
 
@@ -92,65 +96,41 @@ def prepare_images_folder(folder_path):
 
     return corrected_image
 
-def draw_bbox(corrected_image, object_color, background_color):
+#TODO: Remove the temporary return statement and integrate the saving process into the whole app
+#TODO: Test on different colored images to see if the object and background colors are correctly detected
+#TODO: If yes remove the object_color and background_color arguments
+
+def draw_bbox(corrected_image, val):
     '''
     Function to draw a bounding box around a binary mask or a set of binary masks
     '''
+    src_gray = cv2.cvtColor(corrected_image, cv2.COLOR_BGR2GRAY)
+    threshold = val
 
-    height, width, _ = corrected_image.shape
-    blank_image = np.zeros((height, width, 4), dtype=np.uint8) 
-    blank_image[..., 3] = 0  
+    canny_output = cv2.Canny(src_gray, threshold, threshold * 2)
 
-    hsv_image = cv2.cvtColor(corrected_image, cv2.COLOR_BGR2HSV)
+    contours, _ = cv2.findContours(canny_output, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-    object_color_values = object_color.split(',')
-    if len(object_color_values) == 3:
-        object_rgb = tuple(map(int, object_color_values))
-    else:
-        print("Invalid object_color format. Expected format: '85,232,249'")
+    contours_poly = [None]*len(contours)
+    boundRect = [None]*len(contours)
+    centers = [None]*len(contours)
+    radius = [None]*len(contours)
 
+    for i, c in enumerate(contours):
+        contours_poly[i] = cv2.approxPolyDP(c, 3, True)
+        boundRect[i] = cv2.boundingRect(contours_poly[i])
+        centers[i], radius[i] = cv2.minEnclosingCircle(contours_poly[i])
 
-    background_color_values = background_color.split(',')
-    if len(background_color_values) == 3:
-        background_rgb = tuple(map(int, background_color_values))
-    else:
-        print("Invalid background_color format. Expected format: '85,232,249'")
+    drawing = np.zeros((canny_output.shape[0], canny_output.shape[1], 3), dtype=np.uint8)
 
-    object_hsv = cv2.cvtColor(np.uint8([[object_rgb]]), cv2.COLOR_RGB2HSV)[0][0]
-    
-    color_margin_percentage = 10
+    for i in range(len(contours)):
+        color = (0, 255, 0)
+        #cv2.drawContours(drawing, contours_poly, i, color)
+        cv2.rectangle(drawing, (int(boundRect[i][0]), int(boundRect[i][1])), \
+        (int(boundRect[i][0]+boundRect[i][2]), int(boundRect[i][1]+boundRect[i][3])), color, 1)
+        #cv2.circle(drawing, (int(centers[i][0]), int(centers[i][1])), int(radius[i]), color, 2)
 
-    hue_margin = int((object_hsv[0] / 360) * color_margin_percentage)
-    saturation_margin = int((object_hsv[1] / 255) * color_margin_percentage)
-    value_margin = int((object_hsv[2] / 255) * color_margin_percentage)
-
-    lower_color = np.array([
-        max(0, object_hsv[0] - hue_margin),
-        max(0, object_hsv[1] - saturation_margin),
-        max(0, object_hsv[2] - value_margin)
-    ], dtype=np.uint8)
-
-    upper_color = np.array([
-        min(179, object_hsv[0] + hue_margin),
-        min(255, object_hsv[1] + saturation_margin),
-        min(255, object_hsv[2] + value_margin)
-    ], dtype=np.uint8)
-
-    mask = cv2.inRange(hsv_image, lower_color, upper_color)
-
-    object_color_values = object_color.split(',')
-    object_rgb = tuple(map(int, object_color_values))
-    object_b, object_g, object_r = object_rgb
-    print(f'Object Color (BGR): ({object_b}, {object_g}, {object_r})')
-
-    background_color_values = background_color.split(',')
-    background_rgb = tuple(map(int, background_color_values))
-    background_b, background_g, background_r = background_rgb
-    print(f'Background Color (BGR): ({background_b}, {background_g}, {background_r})')
-
-    return blank_image
-
-
+    cv2.imwrite('output.png', drawing)
 
 def save_geojson(output_path, bounding_boxes):
     with open(output_path, "w") as geojson_file:
@@ -170,7 +150,7 @@ def main():
 
     if single_image:
         image = prepare_single_image(input_path)
-        bounding_box = draw_bbox(image, object_color, background_color)
+        bounding_box = draw_bbox(image,val=100)
         
         # Specify the output file format based on the provided output_path
         if output_path is None:
