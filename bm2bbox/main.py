@@ -136,41 +136,61 @@ def main():
     single_image = args.s
     debug_mode = args.debug
 
-    # Define output_file variable outside the conditional block
-    output_file = None
-
-    if not single_image:
-        images, image_paths = prepare_images_folder(input_path)
-    else:
+    if single_image:
+    # Input is a single image
         image, image_path = prepare_single_image(input_path, debug_mode=debug_mode)
         images = [image]
 
-        # Define the output filename based on the original image filename
+    # Define the output filename based on the original image filename
         input_filename = os.path.splitext(os.path.basename(image_path))[0]
         output_file = f'bbox_{input_filename}.json'
 
-    for i, image in enumerate(images):
+    # Use the specified output file path and name, or a default if not provided
+        output_path = args.output or os.path.join("output", output_file)
+
         geojson_features = draw_bbox(image, val=50, debug_mode=debug_mode)
 
-        # Define the output folder based on the -output argument
-        output_folder = args.output
+    # Check if the output path is a directory (for folder input)
+        if os.path.isdir(output_path):
+        # Append the filename to the directory path
+            output_path = os.path.join(output_path, output_file)
 
-        if not os.path.exists(output_folder):
-            os.mkdir(output_folder)
-
-        # Construct the full output path including the output filename
-        if output_file is not None:
-            output_path = os.path.join(output_folder, output_file)
-        else:
-            # Define a default output filename if not specified for single images
-            output_path = os.path.join(output_folder, 'default_output.json')
-
+    # Save the GeoJSON file using the determined output path
         with open(output_path, 'w') as geojson_file:
             geojson.dump(geojson.FeatureCollection(geojson_features), geojson_file, indent=2)
 
         if debug_mode:
             print(f"Saved GeoJSON: {output_path}")
 
+    else:
+        # Input is a folder containing multiple images
+        images, image_paths = prepare_images_folder(input_path)
+
+        # Define the output folder based on the -output argument
+        output_folder = args.output or "output"
+
+        if not os.path.exists(output_folder):
+            os.mkdir(output_folder)
+
+        for i, image in enumerate(images):
+            output_path = None  # Initialize output path as None for each image
+
+            geojson_features = draw_bbox(image, val=50, debug_mode=debug_mode)
+
+            # Construct the full output path including the output filename for folders
+            input_filename = os.path.splitext(os.path.basename(image_paths[i]))[0]
+            output_path = os.path.join(output_folder, f'bbox_{input_filename}.json')
+
+            # Check if the output path is a directory (for folder input)
+            if os.path.isdir(output_path):
+                # Append the filename to the directory path
+                output_path = os.path.join(output_path, f'bbox_{input_filename}.json')
+
+            with open(output_path, 'w') as geojson_file:
+                geojson.dump(geojson.FeatureCollection(geojson_features), geojson_file, indent=2)
+
+            if debug_mode:
+                print(f"Saved GeoJSON: {output_path}")
 
 if __name__ == "__main__":
     main()
