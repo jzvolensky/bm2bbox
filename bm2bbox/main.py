@@ -12,7 +12,6 @@ def parse_args():
     --input: path to input binary mask
     --s: use if input is a single image
     --output: path to output bounding box
-    --output_folder: path to output folder
     '''
     parser = argparse.ArgumentParser(description='Converts a binary mask to a bounding box')
     parser.add_argument('-input',
@@ -21,21 +20,14 @@ def parse_args():
                         help='string. Path to input binary mask'
                         )
     parser.add_argument('-s',
-                        action='store_const',
-                        const=True,
+                        action='store_true',
                         default=False,
-                        metavar='',
                         help='bool. Use if input is a single image'
                         )
     parser.add_argument('-output',
                         type=str,
                         metavar='',
                         help='string. Path to output bounding box'
-                        )
-    parser.add_argument('-output_folder',
-                        type=str,
-                        metavar='',
-                        help='string. Path to output bounding box folder'
                         )
     parser.add_argument('-debug',
                         type=bool,
@@ -71,7 +63,7 @@ def prepare_single_image(image_path,debug_mode):
         print("prepare_single_image function is done")
         print("====================================")
 
-    return corrected_image
+    return corrected_image, image_path
 
 def prepare_images_folder(folder_path):
     '''
@@ -141,32 +133,44 @@ def main():
     args = parse_args()
 
     input_path = args.input
-    output_folder = args.output_folder
     single_image = args.s
     debug_mode = args.debug
 
+    # Define output_file variable outside the conditional block
+    output_file = None
+
     if not single_image:
         images, image_paths = prepare_images_folder(input_path)
+    else:
+        image, image_path = prepare_single_image(input_path, debug_mode=debug_mode)
+        images = [image]
+
+        # Define the output filename based on the original image filename
+        input_filename = os.path.splitext(os.path.basename(image_path))[0]
+        output_file = f'bbox_{input_filename}.json'
 
     for i, image in enumerate(images):
         geojson_features = draw_bbox(image, val=50, debug_mode=debug_mode)
 
-        if not single_image:
-            if output_folder is None:
-                output_folder = "output"
-            if not os.path.exists(output_folder):
-                os.mkdir(output_folder)
-            input_filename = os.path.splitext(os.path.basename(image_paths[i]))[0]
-            output_file = os.path.join(output_folder, f'bbox_{input_filename}.json')
-        else:
-            output_filename = os.path.splitext(os.path.basename(args.output))[0]
-            output_file = f'bbox_{output_filename}.json'
+        # Define the output folder based on the -output argument
+        output_folder = args.output
 
-        with open(output_file, 'w') as geojson_file:
+        if not os.path.exists(output_folder):
+            os.mkdir(output_folder)
+
+        # Construct the full output path including the output filename
+        if output_file is not None:
+            output_path = os.path.join(output_folder, output_file)
+        else:
+            # Define a default output filename if not specified for single images
+            output_path = os.path.join(output_folder, 'default_output.json')
+
+        with open(output_path, 'w') as geojson_file:
             geojson.dump(geojson.FeatureCollection(geojson_features), geojson_file, indent=2)
 
         if debug_mode:
-            print(f"Saved GeoJSON: {output_file}")
+            print(f"Saved GeoJSON: {output_path}")
+
 
 if __name__ == "__main__":
     main()
