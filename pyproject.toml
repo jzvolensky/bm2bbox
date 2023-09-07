@@ -1,0 +1,25 @@
+[project]
+name = "bm2bbox"
+version = "1.0.1"
+description = "Converts binary mask files to geojson files containing bounding boxes"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE.txt"}
+keywords = ["geojson", "bounding box", "binary mask", "image segmentation", "object detection", "computer vision"]
+
+authors = [
+    {name="Juraj Zvolensky", email="juro.zvolensky@gmail.com"}
+]
+
+maintainers = [
+    {name="Juraj Zvolensky", email="juro.zvolensky@gmail.com"}
+]
+
+classifiers = [
+"Development Status :: 5 - Production/Stable",
+"Intended Audience :: Science/Research",
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
