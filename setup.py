@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name = "bm2bbox",
-    version = "1.0.1",
+    version = "1.0.3",
     description = "Converts a binary mask to a bounding box",
     author= "Juraj Zvolenský",
     author_email = "juro.zvolensky@gmail.com",
