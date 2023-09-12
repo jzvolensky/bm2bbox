@@ -143,7 +143,7 @@ def main():
 
 
         input_filename = os.path.splitext(os.path.basename(image_path))[0]
-        output_file = f'bbox_{input_filename}.geojson'
+        output_file = f'bbox_{input_filename}.json'
 
 
         output_path = args.output or os.path.join("output", output_file)
@@ -176,14 +176,13 @@ def main():
 
             geojson_features = draw_bbox(image, val=50, debug_mode=args.debug)
 
-          
             input_filename = os.path.splitext(os.path.basename(image_paths[i]))[0]
-            output_path = os.path.join(output_folder, f'bbox_{input_filename}.geojson')
+            output_path = os.path.join(output_folder, f'bbox_{input_filename}.json')
 
          
             if os.path.isdir(output_path):
         
-                output_path = os.path.join(output_path, f'bbox_{input_filename}.geojson')
+                output_path = os.path.join(output_path, f'bbox_{input_filename}.json')
 
             with open(output_path, 'w') as geojson_file:
                 geojson.dump(geojson.FeatureCollection(geojson_features), geojson_file, indent=2)
