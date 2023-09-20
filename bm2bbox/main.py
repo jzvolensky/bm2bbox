@@ -12,6 +12,7 @@ def parse_args():
     --input: path to input binary mask
     --s: use if input is a single image
     --output: path to output bounding box
+    --debug: debug mode
     '''
     parser = argparse.ArgumentParser(description='Converts a binary mask to a bounding box')
     parser.add_argument('-input',
@@ -177,15 +178,10 @@ def main():
             geojson_features = draw_bbox(image, val=50, debug_mode=args.debug)
 
             input_filename = os.path.splitext(os.path.basename(image_paths[i]))[0]
-            output_path = os.path.join(output_folder, f'bbox_{input_filename}.json')
-
-         
-            if os.path.isdir(output_path):
-        
-                output_path = os.path.join(output_path, f'bbox_{input_filename}.json')
+            output_path = os.path.join(output_folder, f'bbox_{input_filename}.geojson')
 
             with open(output_path, 'w') as geojson_file:
-                geojson.dump(geojson.FeatureCollection(geojson_features), geojson_file, indent=2)
+                geojson.dump(geojson_features, geojson_file, indent=2)
 
             if debug_mode:
                 print(f"Saved GeoJSON: {output_path}")

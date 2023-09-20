@@ -10,3 +10,8 @@ Update and overhaul the documentation
 -make an introduction and usecases
 -make a logo
 
+
+python setup.py sdist bdist_wheel
+
+twine upload dist/bm2bbox-1.0.4*
+
